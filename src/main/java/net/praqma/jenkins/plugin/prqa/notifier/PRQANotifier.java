@@ -115,38 +115,6 @@ public class PRQANotifier extends Publisher {
     public Action getProjectAction(AbstractProject<?, ?> project) {
         return new PRQAProjectAction(project);
     }
-    
-    /*
-     *Small utility to handle illegal values. Defaults to null if string is unparsable. 
-     */
-    @Deprecated
-    private static Integer parseIntegerNullDefault(String value) {
-        try {
-            
-            if(value == null || value.equals("")) {
-               return null;
-            }
-            
-            Integer parsed = Integer.parseInt(value);
-            return parsed;
-        
-        } catch (NumberFormatException nex) {
-            return null;
-        }
-    }
-    @Deprecated
-    private static Double parseDoubleNullDefault(String value) {
-        try 
-        {
-            if(value == null || value.equals("")) {
-               return null;
-            }
-            Double parsed = Double.parseDouble(value);
-            return parsed; 
-        } catch (NumberFormatException ex) {
-            return null;
-        }
-    }
 
     @Override
     public BuildStepMonitor getRequiredMonitorService() {
