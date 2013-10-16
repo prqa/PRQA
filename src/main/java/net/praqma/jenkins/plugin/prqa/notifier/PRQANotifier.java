@@ -61,33 +61,16 @@ import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.export.Exported;
 
-//TODO: I intend to REMOVE all the deprecated fields in the realease for the new PRQA API
 public class PRQANotifier extends Publisher {
     private static final Logger log = Logger.getLogger(PRQANotifier.class.getName());
     private PrintStream out;
     private List<PRQAGraph> graphTypes;
-    @Deprecated
-    private HashMap<StatusCategory,Number> thresholds;
+    
     private EnumSet<QARReportType> chosenReportTypes;
     public final int threshholdlevel;
-    @Deprecated
-    public final Boolean totalBetter;
-    @Deprecated
-    public final Integer totalMax;
     
     public final String product;
     public final String chosenServer;
-    
-    @Deprecated
-    public final String settingFileCompliance;
-    @Deprecated
-    public final String settingMaxMessages;
-    @Deprecated
-    public final String settingProjectCompliance;
-    @Deprecated
-    public final Double fileComplianceIndex;
-    @Deprecated
-    public final Double projectComplianceIndex;
     
     public final String projectFile;
     public final String vcsConfigXml;
@@ -96,8 +79,7 @@ public class PRQANotifier extends Publisher {
     public final boolean singleSnapshotMode;
     public final boolean enableDependencyMode;
     public final boolean enableDataFlowAnalysis;
-    @Deprecated
-    public final boolean generateReports;
+
     private CodeUploadSetting codeUploadSetting = CodeUploadSetting.None;
     public final String sourceOrigin;
     public final String qaVerifyProjectName;
@@ -106,23 +88,12 @@ public class PRQANotifier extends Publisher {
     
 
     @DataBoundConstructor
-    public PRQANotifier(final String product, boolean totalBetter, 
-    String totalMax, String fileComplianceIndex, String projectComplianceIndex, 
-    String settingMaxMessages, String settingFileCompliance, String settingProjectCompliance, 
-    String projectFile, boolean performCrossModuleAnalysis, boolean publishToQAV, 
-    String qaVerifyProjectName, String vcsConfigXml, boolean singleSnapshotMode,
+    public PRQANotifier(final String product, String projectFile, boolean performCrossModuleAnalysis, boolean publishToQAV, String qaVerifyProjectName, String vcsConfigXml, boolean singleSnapshotMode,
             String snapshotName, String chosenServer, boolean enableDependencyMode, 
             String codeUploadSetting, String msgConfigFile, boolean generateReports, String sourceOrigin, EnumSet<QARReportType> chosenReportTypes,
             boolean enableDataFlowAnalysis, final int threshholdlevel, PRQAReportSource source, 
             List<AbstractThreshold> thresholdsDesc) {
         this.product = product;
-        this.totalBetter = totalBetter;
-        this.totalMax = parseIntegerNullDefault(totalMax);
-        this.fileComplianceIndex = parseDoubleNullDefault(fileComplianceIndex);
-        this.projectComplianceIndex = parseDoubleNullDefault(projectComplianceIndex);
-        this.settingProjectCompliance = settingProjectCompliance;
-        this.settingMaxMessages = settingMaxMessages;
-        this.settingFileCompliance = settingFileCompliance;
         this.projectFile = projectFile;
         this.publishToQAV = publishToQAV;
         this.performCrossModuleAnalysis = performCrossModuleAnalysis;
@@ -137,7 +108,6 @@ public class PRQANotifier extends Publisher {
         this.enableDataFlowAnalysis = enableDataFlowAnalysis;
         this.threshholdlevel = threshholdlevel;
         this.source = source;
-        this.generateReports = generateReports;
         this.thresholdsDesc = thresholdsDesc;      
     }
     
@@ -211,76 +181,6 @@ public class PRQANotifier extends Publisher {
         }
         status.setThresholds(tholds);
         return isStable;
-    }
-    
-    //TODO: This should be removed when we do the next point release (1.3.0)
-    @Deprecated
-    private boolean evaluateOld( String settingProjectCompliance, String settingMaxMessages, String settingFileCompliance,
-                                    Integer totalMax, Double fileComplianceIndex, Double projectComplianceIndex, PRQAReading lar,
-    PRQAComplianceStatus status, int threshholdlevel ) {
-        boolean res = false;
-        ComparisonSettings fileCompliance = ComparisonSettings.valueOf(settingFileCompliance);
-        ComparisonSettings projCompliance = ComparisonSettings.valueOf(settingProjectCompliance);
-        ComparisonSettings maxMsg = ComparisonSettings.valueOf(settingMaxMessages); 
-        
-            //First compare file compliance
-        try {
-            Double currentFileCompliance = status.getReadout(StatusCategory.ProjectCompliance).doubleValue();
-            if(fileCompliance == ComparisonSettings.Improvement) {
-                if(lar != null) {
-                    Double previous = lar.getReadout(StatusCategory.FileCompliance).doubleValue();
-                    if(currentFileCompliance < previous) {
-                        status.addNotification(Messages.PRQANotifier_ProjectComplianceIndexRequirementNotMet(currentFileCompliance, previous));
-                        res = false;
-                    }
-                }
-
-            } else if(fileCompliance == ComparisonSettings.Threshold) {
-                if(currentFileCompliance < fileComplianceIndex) {
-                    status.addNotification(Messages.PRQANotifier_FileComplianceRequirementNotMet(currentFileCompliance, fileComplianceIndex));
-                    res = false;
-                }
-            }
-            
-            Double currentProjecCompliance = status.getReadout(StatusCategory.ProjectCompliance).doubleValue();
-            if(projCompliance == ComparisonSettings.Threshold) {
-                if(currentProjecCompliance < projectComplianceIndex) {
-                    status.addNotification(Messages.PRQANotifier_ProjectComplianceIndexRequirementNotMet(currentProjecCompliance, projectComplianceIndex));
-                    res = false;
-                }
-
-            } else if(projCompliance == ComparisonSettings.Improvement) {
-                if(lar != null) {
-                    Double previous = lar.getReadout(StatusCategory.ProjectCompliance).doubleValue();
-                    if(currentProjecCompliance < previous) {
-                        status.addNotification(Messages.PRQANotifier_ProjectComplianceIndexRequirementNotMet(currentProjecCompliance, previous));
-                        res = false;
-                    }
-                }
-            }
-            
-        int current = ((PRQAComplianceStatus)status).getMessageCount(threshholdlevel);
-        if(maxMsg == ComparisonSettings.Improvement) {
-            if(lar != null) {
-                int previous = ((PRQAComplianceStatus)lar).getMessageCount(threshholdlevel);
-                if(current > previous) {
-                    status.addNotification(Messages.PRQANotifier_MaxMessagesRequirementNotMet(current, previous));
-                    res = false;
-                }
-            }
-
-        } else if(maxMsg == ComparisonSettings.Threshold) {
-            if(current > totalMax) {
-                status.addNotification(Messages.PRQANotifier_MaxMessagesRequirementNotMet(current, totalMax));
-                res = false;
-            }
-        }
-        
-        } catch (PrqaException ex) {
-            out.println("Report generation ok. Caught exception evaluation results. Trace written to log");
-            log.log(Level.SEVERE, "Storing unexpected result evalution exception", ex);            
-        }
-        return res;
     }
     
     /**
@@ -528,28 +428,9 @@ public class PRQANotifier extends Publisher {
         PRQAReading lar = previousResult != null ? previousResult.getFirst() : null;
         
         boolean res = true;
+         
+        res = evaluate((PRQAComplianceStatus)status, thresholdsDesc, status);
 
-        log.fine("settingsProjectCompliance is null: " + (settingProjectCompliance == null));
-        log.fine("settingMaxMessages is null: " + (settingMaxMessages == null));
-        log.fine("settingFileCompliance is null: " + (settingFileCompliance == null));
-        log.fine("thresholdsDesc is null: " + (thresholdsDesc == null));
-        if(thresholdsDesc != null) {
-            log.fine("thresholdsDescSize: "+thresholdsDesc.size());
-        }
-        
-        try {            
-            if(settingProjectCompliance != null && settingMaxMessages != null && settingFileCompliance != null && (thresholdsDesc == null || thresholdsDesc.isEmpty())) {
-                res = evaluateOld(settingProjectCompliance, settingMaxMessages, settingFileCompliance, totalMax, 
-                        fileComplianceIndex, projectComplianceIndex, lar, status, threshholdlevel);
-            } else {
-                res = evaluate((PRQAComplianceStatus)status, thresholdsDesc, status);
-                log.fine("Evaluated to: "+res);
-            }
-        } catch (Exception ex) {
-            out.println("Report generation ok. Caught exception evaluation results. Trace written to log");
-            log.log(Level.SEVERE, "Storing unexpected result evalution exception", ex);            
-        }
-        
         out.println(Messages.PRQANotifier_ScannedValues());        
         out.println(status);
 
@@ -582,11 +463,6 @@ public class PRQANotifier extends Publisher {
             }         
         } while(iterate != null);      
         return result;
-    }
-    
-    @Exported
-    public Integer getTotalMax() {
-        return this.totalMax;
     }
     
     @Exported
